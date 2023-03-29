@@ -1,0 +1,48 @@
+.vidDiv {
+    position:relative; 
+    width: max(20vw, 400px);
+}
+
+video {
+    /* object-fit: cover; */
+
+    margin-top: 1vh;
+    width: 100%;
+
+}
+
+#canvas {
+    position:relative;
+    /* margin-left: 1vw; */
+    margin: 0;
+    width: 80vw;
+    height: 90vh;
+    background-color: rgb(0,0,100);
+  
+}
+
+.main { 
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+}
+
+.controls {
+    margin-left:5px;
+    width: 18vw;
+    height: 90vh;
+    border: 2px solid black;
+    display: flex;
+    flex-direction: column;
+}
+
+.objLabel {
+    text-shadow:
+    -1px -1px 0 black,
+     1px -1px 0 black,
+     -1px 1px 0 black,
+      1px 1px 0 black;
+    font-size: 3vh;
+}
+
+p { word-break: break-all}

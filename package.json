@@ -1,0 +1,21 @@
+{
+  "name": "nycsquirrels",
+  "version": "1.0.0",
+  "description": "NYC Central Park Squirrel Data",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack --mode=production --node-env=production",
+    "build:dev": "webpack --mode=development",
+    "build:prod": "webpack --mode=production --node-env=production",
+    "watch": "webpack --watch --mode=development"
+  },
+  "author": "Philip Bertani",
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.149.0"
+  },
+  "devDependencies": {
+    "@webpack-cli/generators": "^3.0.1"
+  }
+}
