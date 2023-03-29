@@ -343,10 +343,6 @@ class GPU {
           const textElem = this.labels[i];
           const text = "obj#" + i;
 
-          const vec3 = new THREE.Vector3();
-          vec3.copy(this.baryCenters[i])
-          vec3.add(this.groupBaryCenter)
-    
           this.setTextOrtho(textElem,this.baryCenters[i],text)
         }
 
