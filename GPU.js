@@ -155,8 +155,11 @@ class GPU {
 
       function checkMouse(ev) {
         //console.log(ev.clientX)
-        this.pointer.x = (ev.clientX / this.width)*2 - 1;
-        this.pointer.y = -(ev.clientY / this.height)*2 + 1; 
+        const rect = this.canvas.getBoundingClientRect();
+        //mouse coords are always in terms of whole screen so need to
+        //subtract by top left corner of canvas
+        this.pointer.x = ( (ev.clientX-rect.left) / this.width)*2 - 1;
+        this.pointer.y = -( (ev.clientY-rect.top) / this.height)*2 + 1; 
       }
 
       this.canvas.addEventListener('mousemove',checkMouse.bind(this),false)
@@ -307,6 +310,7 @@ class GPU {
       let prevRenderTime = Date.now();
       const fps = 40;
       const fpsInterval = 1000 / fps;
+      let frameCount = 0;
       requestAnimationFrame(renderLoop.bind(this));
   
       function renderLoop(time) {
@@ -320,8 +324,14 @@ class GPU {
         if (elapsed < fpsInterval) return;
         prevRenderTime = currentRenderTime - (elapsed % fpsInterval);
         time *= 0.001; //convert from milliseconds to seconds
-  
+        frameCount ++;
+
         this.raycaster.setFromCamera(this.pointer,this.camera);
+        if (frameCount%40===0) {
+          console.log("origin:",this.raycaster.ray.origin)
+          console.log("dir:", this.raycaster.ray.direction)
+        }
+
         const mousePicker = this.raycaster.intersectObjects(this.scene.children) 
 
         //console.log(mousePicker.length)
