@@ -186,14 +186,14 @@ class GPU {
 
     this.lineMaterial = new THREE.MeshPhongMaterial({
       color: "rgb(25,255,25)",
-      opacity: 0.9,
+      opacity: 0.8,
       transparent: true,
       blending: THREE.NormalBlending,
     });
 
     this.selectPointMaterial = new THREE.MeshPhongMaterial({
       color: "rgb(255,255,255)",
-      opacity: 0.7,
+      opacity: 0.4,
       transparent: true,
       blending: THREE.AdditiveBlending
     });
@@ -203,7 +203,7 @@ class GPU {
     });
 
     this.up = new THREE.Vector3(0,1,0);
-    this.sphere = new THREE.SphereGeometry(.5);
+    this.sphere = new THREE.SphereGeometry(.4);
     this.sphere2 = new THREE.SphereGeometry(.5);
     this.bigSphere = new THREE.SphereGeometry(1.5);
  
