@@ -193,7 +193,7 @@ class GPU {
 
     this.selectPointMaterial = new THREE.MeshPhongMaterial({
       color: "rgb(255,255,255)",
-      opacity: 0.5,
+      opacity: 0.7,
       transparent: true,
       blending: THREE.AdditiveBlending
     });
