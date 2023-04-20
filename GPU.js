@@ -126,6 +126,7 @@ class GPU {
     }
 
     function loadObjects(object) {
+
       console.log(object);
 
       object.scale.set(1, 1, 1);
@@ -141,13 +142,21 @@ class GPU {
 
       this.scene.traverse(centerGroup.bind(this));
 
-      console.log(this.labels);
-      console.log(this.objects);
+      //console.log(this.labels);
+      //console.log(this.objects);
 
       //
       this.baryCenters.forEach((bary) => {
         bary.add(this.groupBaryCenter);
       });
+
+      this.currentMouseSphere = new THREE.Mesh(this.sphere,this.pointMaterial);
+      this.currentMouseSphere.visible = false;
+      this.currentBigMouseSphere = new THREE.Mesh(this.bigSphere,this.selectPointMaterial);
+      this.currentBigMouseSphere.visible = false;
+
+      this.scene.add(this.currentMouseSphere);
+      this.scene.add(this.currentBigMouseSphere);
 
       this.renderer.render(this.scene, this.camera);
       this.render();
@@ -177,12 +186,27 @@ class GPU {
 
     this.lineMaterial = new THREE.MeshPhongMaterial({
       color: "rgb(25,255,25)",
-      opacity: 0.7,
+      opacity: 0.9,
       transparent: true,
       blending: THREE.NormalBlending,
     });
 
+    this.selectPointMaterial = new THREE.MeshPhongMaterial({
+      color: "rgb(255,255,255)",
+      opacity: 0.5,
+      transparent: true,
+      blending: THREE.AdditiveBlending
+    });
+
+    this.pointMaterial = new THREE.MeshPhongMaterial({
+      color: "rgb(0,0,0)"
+    });
+
     this.up = new THREE.Vector3(0,1,0);
+    this.sphere = new THREE.SphereGeometry(.5);
+    this.sphere2 = new THREE.SphereGeometry(.5);
+    this.bigSphere = new THREE.SphereGeometry(1.5);
+ 
   }
 
   computeBaryCenter(vertices) {
@@ -236,8 +260,8 @@ class GPU {
     // cylinder: radiusAtTop, radiusAtBottom,
     //     height, radiusSegments, heightSegments
     const edgeGeometry = new THREE.CylinderGeometry(
-      .5,
-      .5,
+      .15,
+      .15,
       edge.length(),
       4,
       4
@@ -261,13 +285,16 @@ class GPU {
       console.log("measuring");
       if (this.currentMousePoint) {
         this.measurePoints.push(this.currentMousePoint);
+        const newPoint = new THREE.Mesh(this.sphere2,this.selectPointMaterial);
+        newPoint.position.copy(this.currentMousePoint);
+        this.scene.add(newPoint);
         if (this.measurePoints.length > 1) {
           //add a cylinder from current to previous
           const prev = this.measurePoints.length - 2;
           const newEdge = this.cylinderMesh(
             this.measurePoints[prev],this.currentMousePoint);
 
-          console.log(newEdge)
+          //console.log(newEdge)
           this.scene.add(newEdge);
         }
       }
@@ -389,20 +416,44 @@ class GPU {
 
       //console.log(mousePicker.length)
 
-      if (mousePicker.length > 0) {
+      this.currentMouseSphere.visible = false;
+      this.currentBigMouseSphere.visible = false;
+
+      if (mousePicker.length > 0 ) {
         //console.log(mousePicker[0])
+
+        let pointToUse = mousePicker[0];
+        for (const point of mousePicker) {
+          if ( String(point.object.name).includes("Object")) {
+            pointToUse = point;
+            this.currentMouseSphere.visible = true;
+            this.currentMouseSphere.position.copy(point.point);
+            this.currentBigMouseSphere.visible = true;
+            this.currentBigMouseSphere.position.copy(point.point);
+            //console.log('pointy')
+            break;
+          }
+        }        
+
+        //check if new point is very close to one that exists
+        //if it is use the exact position for that point
+
         this.mouseObjectElem.innerHTML =
           "<p>" +
-          mousePicker[0].object.name +
+          pointToUse.object.name +
           "<br><br>Point<br>" +
-          JSON.stringify(mousePicker[0].point) +
+          JSON.stringify(pointToUse.point) +
           "<br><br>Face<br>" +
-          JSON.stringify(mousePicker[0].face) +
+          JSON.stringify(pointToUse.face) +
           "</p>";
-        this.currentMousePoint = mousePicker[0].point;
+        this.currentMousePoint = pointToUse.point;
+
       } else {
         this.mouseObjectElem.innerHTML = "";
         this.currentMousePoint = null;
+        this.currentMouseSphere.visible = false;
+        this.currentBigMouseSphere.visible = false;
+ 
       }
 
       for (let i = 0; i < this.objects.length; i++) {
@@ -412,14 +463,6 @@ class GPU {
 
         this.setTextOrtho(textElem, this.baryCenters[i], text);
       }
-
-      /*
-        if (this.measurePoints.length > 1) {
-          const lines = new THREE.BufferGeometry().setFromPoints(this.measurePoints);
-          const lineObject = new THREE.Line(lines, this.lineMaterial);
-          this.scene.add(lineObject);
-        }
-        */
 
       this.renderer.render(this.scene, this.camera);
     }
