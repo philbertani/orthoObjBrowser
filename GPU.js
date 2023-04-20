@@ -24,6 +24,7 @@ class GPU {
   pointer = { x: 0, y: 0 };
   measurePoints = [];
   currentMousePoint = null;
+  numLines = 0;
 
   constructor(canvas) {
     this.canvas = canvas;
@@ -181,30 +182,32 @@ class GPU {
 
     this.canvas.addEventListener("mousemove", checkMouse.bind(this), false);
     this.mouseObjectElem = document.getElementById("mouseObject");
+    this.lineObjectElem = document.getElementById("lineObject");
 
     this.mtlL.setPath("./").load("obj.mtl", loadMaterials.bind(this));
 
     this.lineMaterial = new THREE.MeshPhongMaterial({
       color: "rgb(25,255,25)",
-      opacity: 0.8,
-      transparent: true,
-      blending: THREE.NormalBlending,
     });
 
-    this.selectPointMaterial = new THREE.MeshPhongMaterial({
-      color: "rgb(255,255,255)",
+    this.selectPointMaterial = new THREE.MeshBasicMaterial({
+      color: "rgb(255,100,255)",
       opacity: 0.4,
       transparent: true,
       blending: THREE.AdditiveBlending
     });
 
-    this.pointMaterial = new THREE.MeshPhongMaterial({
-      color: "rgb(0,0,0)"
+    this.pointMaterial = new THREE.MeshBasicMaterial({
+      color: "rgb(0,100,255)",
+      opacity: 0.6,
+      transparent: true,
+      blending: THREE.AdditiveBlending
     });
 
+
     this.up = new THREE.Vector3(0,1,0);
-    this.sphere = new THREE.SphereGeometry(.4);
-    this.sphere2 = new THREE.SphereGeometry(.5);
+    this.sphere = new THREE.SphereGeometry(.5);
+    this.sphere2 = new THREE.SphereGeometry(.4);
     this.bigSphere = new THREE.SphereGeometry(1.5);
  
   }
@@ -260,8 +263,8 @@ class GPU {
     // cylinder: radiusAtTop, radiusAtBottom,
     //     height, radiusSegments, heightSegments
     const edgeGeometry = new THREE.CylinderGeometry(
-      .15,
-      .15,
+      .25,
+      .25,
       edge.length(),
       4,
       4
@@ -275,6 +278,11 @@ class GPU {
       .addVectors(pointX,edge.multiplyScalar(.5));
 
     mesh.position.copy(edgePos);
+    mesh.edgeLength = edge.length();
+
+    this.lineObjectElem.innerHTML = "<p>" +
+      "<br>Line # and Length is: " + this.numLines + ", " + Math.trunc(mesh.edgeLength*1000)/1000;
+      + "/p>"
 
     return mesh;
   }
@@ -285,7 +293,7 @@ class GPU {
       console.log("measuring");
       if (this.currentMousePoint) {
         this.measurePoints.push(this.currentMousePoint);
-        const newPoint = new THREE.Mesh(this.sphere2,this.selectPointMaterial);
+        const newPoint = new THREE.Mesh(this.sphere2,this.lineMaterial);
         newPoint.position.copy(this.currentMousePoint);
         this.scene.add(newPoint);
         if (this.measurePoints.length > 1) {
@@ -293,6 +301,11 @@ class GPU {
           const prev = this.measurePoints.length - 2;
           const newEdge = this.cylinderMesh(
             this.measurePoints[prev],this.currentMousePoint);
+
+          newEdge.name = "line " + this.numLines;
+          newEdge.index = this.numLines;
+
+          this.numLines ++;
 
           //console.log(newEdge)
           this.scene.add(newEdge);
@@ -417,20 +430,40 @@ class GPU {
       //console.log(mousePicker.length)
 
       this.currentMouseSphere.visible = false;
-      this.currentBigMouseSphere.visible = false;
+      this.currentBigMouseSphere.visible = false;  
+      this.currentMousePoint = null;
 
       if (mousePicker.length > 0 ) {
         //console.log(mousePicker[0])
 
         let pointToUse = mousePicker[0];
         for (const point of mousePicker) {
+
+          if (point.object.edgeLength) {
+            this.lineObjectElem.innerHTML = "";
+            //console.log("length is:",point.object.edgeLength)
+            this.lineObjectElem.innerHTML = "<p>" +
+              "<br>Line # and Length is: " + point.object.index + ", " + Math.trunc(point.object.edgeLength*1000)/1000;
+              + "/p>"
+          }
+
           if ( String(point.object.name).includes("Object")) {
+
+            this.mouseObjectElem.innerHTML = "";
             pointToUse = point;
             this.currentMouseSphere.visible = true;
             this.currentMouseSphere.position.copy(point.point);
             this.currentBigMouseSphere.visible = true;
             this.currentBigMouseSphere.position.copy(point.point);
-            //console.log('pointy')
+
+            this.mouseObjectElem.innerHTML +=
+            "<p>" +
+            pointToUse.object.name +
+            "<br><br>Point<br>" +
+            JSON.stringify(pointToUse.point) +
+            "<br><br>Face<br>" +
+            JSON.stringify(pointToUse.face) +
+            "</p>";
             break;
           }
         }        
@@ -438,21 +471,8 @@ class GPU {
         //check if new point is very close to one that exists
         //if it is use the exact position for that point
 
-        this.mouseObjectElem.innerHTML =
-          "<p>" +
-          pointToUse.object.name +
-          "<br><br>Point<br>" +
-          JSON.stringify(pointToUse.point) +
-          "<br><br>Face<br>" +
-          JSON.stringify(pointToUse.face) +
-          "</p>";
-        this.currentMousePoint = pointToUse.point;
 
-      } else {
-        this.mouseObjectElem.innerHTML = "";
-        this.currentMousePoint = null;
-        this.currentMouseSphere.visible = false;
-        this.currentBigMouseSphere.visible = false;
+        this.currentMousePoint = pointToUse.point;
  
       }
 
