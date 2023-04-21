@@ -25,12 +25,20 @@ class GPU {
   measurePoints = [];
   currentMousePoint = null;
   numLines = 0;
+  showText = false;
+  zoom = 1;
+  lookAt = null;
+  frustumFudge = 1.2;
+  previousHighLighedIndex = -1;
 
   constructor(canvas) {
     this.canvas = canvas;
     window.addEventListener("resize", this.handleResize.bind(this), false);
 
     window.addEventListener("keypress", this.handleKeyPress.bind(this), false);
+
+    //THREE.Cache.enabled = false;
+    THREE.Cache.clear();
 
     const canvasDim = canvas.getBoundingClientRect();
     const [width, height] = [canvasDim.width, canvasDim.height];
@@ -44,7 +52,7 @@ class GPU {
 
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(width, height, true);
-    renderer.setClearColor("rgb(255,255,255)", 0);
+    renderer.setClearColor("rgb(70,70,120)", 1);
 
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.needsUpdate = true;
@@ -55,33 +63,33 @@ class GPU {
     this.scene = new THREE.Scene();
 
     const aspect = width / height;
-    const frustumSize = 150;
+    const frustumSize = 150 / this.frustumFudge;
 
     this.frustumSize = frustumSize;
     //this.camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 3000);
 
     this.camera = new THREE.OrthographicCamera(
-      (-frustumSize * aspect) / 2,
-      (frustumSize * aspect) / 2,
+      (-frustumSize * aspect) / 2 ,
+      (frustumSize * aspect) / 2 ,
       frustumSize / 2,
       -frustumSize / 2,
       1,
       1000
     );
 
-    this.camera.position.z = frustumSize / 2;
+    this.camera.position.z = frustumSize ;
 
     this.controls = new OrbitControls(this.camera, renderer.domElement);
     this.controls.minDistance = 0.1;
     this.controls.maxDistance = 1000;
     this.controls.zoomSpeed = 1;
 
-    this.mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    this.mainLight.position.set(0, 0, 5000);
-    this.setShadow(this.mainLight);
-    this.scene.add(this.mainLight);
+    //this.mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    //this.mainLight.position.set(0, 0, 5000);
+    //this.setShadow(this.mainLight);
+    //this.scene.add(this.mainLight);
 
-    this.cameraLight = new THREE.PointLight(0xffff00, 0.6);
+    this.cameraLight = new THREE.PointLight(0xffffff, 1.);
     this.setShadow(this.cameraLight);
     this.camera.add(this.cameraLight);
     this.scene.add(this.camera);
@@ -143,10 +151,6 @@ class GPU {
 
       this.scene.traverse(centerGroup.bind(this));
 
-      //console.log(this.labels);
-      //console.log(this.objects);
-
-      //
       this.baryCenters.forEach((bary) => {
         bary.add(this.groupBaryCenter);
       });
@@ -190,16 +194,18 @@ class GPU {
       color: "rgb(25,255,25)",
     });
 
+    //NormalBlending gives more contrast when there are a lot of colors
+    //but since we are highlighting the object the same color AdditiveBlending works nicer
     this.selectPointMaterial = new THREE.MeshBasicMaterial({
-      color: "rgb(255,100,255)",
+      //color: "rgb(100,0,100)",
       opacity: 0.4,
       transparent: true,
       blending: THREE.AdditiveBlending
     });
 
     this.pointMaterial = new THREE.MeshBasicMaterial({
-      color: "rgb(0,100,255)",
-      opacity: 0.6,
+      color: "rgb(255,255,255)",
+      opacity: 0.3,
       transparent: true,
       blending: THREE.AdditiveBlending
     });
@@ -263,11 +269,11 @@ class GPU {
     // cylinder: radiusAtTop, radiusAtBottom,
     //     height, radiusSegments, heightSegments
     const edgeGeometry = new THREE.CylinderGeometry(
-      .25,
-      .25,
+      .3,
+      .3,
       edge.length(),
       4,
-      4
+      1
     );
     
     const mesh = new THREE.Mesh(edgeGeometry,this.lineMaterial);
@@ -290,7 +296,7 @@ class GPU {
   handleKeyPress(ev) {
     //console.log(ev)
     if (ev.keyCode === 109) {
-      console.log("measuring");
+      //console.log("measuring");
       if (this.currentMousePoint) {
         this.measurePoints.push(this.currentMousePoint);
         const newPoint = new THREE.Mesh(this.sphere2,this.lineMaterial);
@@ -312,6 +318,11 @@ class GPU {
         }
       }
     }
+    else if (ev.keyCode === 122) {
+
+      this.handleResizeOrtho("handleZoom")
+      this.zoom ^= 1;
+    }
   }
 
   handleResize() {
@@ -331,19 +342,38 @@ class GPU {
     this.renderer.setSize(width, height);
   }
 
-  handleResizeOrtho() {
+  handleResizeOrtho(handleZoom="") {
     const canvasDim = canvas.getBoundingClientRect();
     const [width, height] = [canvasDim.width, canvasDim.height];
     this.width = width;
     this.height = height;
 
+    let zoomMult = 1;
+    if (handleZoom) {
+      zoomMult = (this.zoom === 0 ) ? 1 : 5;
+    }
+
+    if (handleZoom) {
+      //console.log('xxx')
+      if ( zoomMult > 1 && this.currentMousePoint) {
+        this.controls.target.copy(this.currentMousePoint);
+      }
+      else {
+        this.controls.target.set(0,0,0);
+      }
+    }
+
     const aspect = width / height;
-    this.camera.left = (-this.frustumSize * aspect) / 2;
-    this.camera.right = (this.frustumSize * aspect) / 2;
-    this.camera.top = this.frustumSize / 2;
-    this.camera.bottom = -this.frustumSize / 2;
+    this.camera.left = (-this.frustumSize * aspect) / 2 / zoomMult;
+    this.camera.right = (this.frustumSize * aspect) / 2 / zoomMult;
+    this.camera.top = this.frustumSize / 2 / zoomMult;
+    this.camera.bottom = -this.frustumSize / 2 / zoomMult;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
+
+    this.controls.update();
+
+
   }
 
   setShadow(light) {
@@ -456,6 +486,36 @@ class GPU {
             this.currentBigMouseSphere.visible = true;
             this.currentBigMouseSphere.position.copy(point.point);
 
+            const cc = pointToUse.object.material.color;
+            let colorToUse = cc;
+
+            function ET(cc) {  //(E)xponential (T)one
+              return 1 - Math.exp(-cc);
+            }
+            if ( !cc.hasOwnProperty("highlighted") ||
+                (cc.hasOwnProperty("highlighted") && !cc.highlighted )) {
+
+              //if something is already highlighted we need to know it's index
+              if ( this.currentHighLighted ) {
+                //console.log("xxx");
+                this.previousHighLighedIndex = this.currentHighLighted.index;
+                this.currentHighLighted.material.color.copy(this.previousColor);
+                this.currentHighLighted.material.color.highlighted = false;
+              }
+
+              this.previousColor = new THREE.Color().copy(cc);
+              const highlightColor = new THREE.Color(ET(cc.r/4+.9),ET(cc.g/4+.3),ET(cc.b/4.+.9));
+              cc.set(highlightColor);
+              cc.highlighted = true;
+              this.currentHighLighted = pointToUse.object;
+              colorToUse = highlightColor;
+            }
+
+            //const newColor = new THREE.Color(1-cc.r,1-cc.g,1-cc.b);
+            const newColor = new THREE.Color(1-colorToUse.r,1-colorToUse.g,1-colorToUse.b);
+       
+            this.currentBigMouseSphere.material.color.set(newColor);
+
             this.mouseObjectElem.innerHTML +=
             "<p>" +
             pointToUse.object.name +
@@ -463,6 +523,10 @@ class GPU {
             JSON.stringify(pointToUse.point) +
             "<br><br>Face<br>" +
             JSON.stringify(pointToUse.face) +
+            "<br><br>Color<br>" +
+            " red: " + pointToUse.object.material.color.r +
+            " green: " + pointToUse.object.material.color.g +
+            " blue: "  + pointToUse.object.material.color.b
             "</p>";
             break;
           }
@@ -471,17 +535,29 @@ class GPU {
         //check if new point is very close to one that exists
         //if it is use the exact position for that point
 
-
         this.currentMousePoint = pointToUse.point;
  
       }
 
-      for (let i = 0; i < this.objects.length; i++) {
-        const obj = this.objects[i];
-        const textElem = this.labels[i];
-        const text = "obj#" + i;
+      if ( !this.currentMousePoint ) {
+        //if we get here we have to reset the color of the previous highlighted object
+        if (this.currentHighLighted) {
+          //console.log("we need to revert");
+          //console.log(this.currentHighLighted.material.color);
+          this.currentHighLighted.material.color.copy(this.previousColor);
+          this.currentHighLighted.material.color.highlighted = false;
+          this.currentHighLighted = null;
+        }
+      }
 
-        this.setTextOrtho(textElem, this.baryCenters[i], text);
+      if (this.showText) {
+        for (let i = 0; i < this.objects.length; i++) {
+          const obj = this.objects[i];
+          const textElem = this.labels[i];
+          const text = "obj#" + i;
+
+          this.setTextOrtho(textElem, this.baryCenters[i], text);
+        }
       }
 
       this.renderer.render(this.scene, this.camera);

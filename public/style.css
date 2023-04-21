@@ -45,4 +45,4 @@ video {
     font-size: 3vh;
 }
 
-p { word-break: break-all}
+p { margin: 5px; word-break: break-all}
