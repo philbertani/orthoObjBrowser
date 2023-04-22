@@ -52,7 +52,8 @@ class GPU {
 
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(width, height, true);
-    renderer.setClearColor("rgb(70,70,120)", 1);
+    renderer.setClearColor("rgb(70,70,150)", 1);
+
 
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.needsUpdate = true;
@@ -84,12 +85,12 @@ class GPU {
     this.controls.maxDistance = 1000;
     this.controls.zoomSpeed = 1;
 
-    //this.mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    //this.mainLight.position.set(0, 0, 5000);
-    //this.setShadow(this.mainLight);
-    //this.scene.add(this.mainLight);
+    this.mainLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    this.mainLight.position.set(0, 1000, 0);
+    this.setShadow(this.mainLight);
+    this.scene.add(this.mainLight);
 
-    this.cameraLight = new THREE.PointLight(0xffffff, 1.);
+    this.cameraLight = new THREE.PointLight(0xffffff, .7);
     this.setShadow(this.cameraLight);
     this.camera.add(this.cameraLight);
     this.scene.add(this.camera);
@@ -155,13 +156,13 @@ class GPU {
         bary.add(this.groupBaryCenter);
       });
 
-      this.currentMouseSphere = new THREE.Mesh(this.sphere,this.pointMaterial);
-      this.currentMouseSphere.visible = false;
       this.currentBigMouseSphere = new THREE.Mesh(this.bigSphere,this.selectPointMaterial);
       this.currentBigMouseSphere.visible = false;
+      this.currentBiggerMouseSphere = new THREE.Mesh(this.sphere3,this.pointMaterial2);
+      this.currentBiggerMouseSphere.visible = false;
 
-      this.scene.add(this.currentMouseSphere);
       this.scene.add(this.currentBigMouseSphere);
+      this.scene.add(this.currentBiggerMouseSphere);
 
       this.renderer.render(this.scene, this.camera);
       this.render();
@@ -191,30 +192,31 @@ class GPU {
     this.mtlL.setPath("./").load("obj.mtl", loadMaterials.bind(this));
 
     this.lineMaterial = new THREE.MeshPhongMaterial({
-      color: "rgb(25,255,25)",
+      color: "rgb(25,220,25)",
     });
 
     //NormalBlending gives more contrast when there are a lot of colors
     //but since we are highlighting the object the same color AdditiveBlending works nicer
     this.selectPointMaterial = new THREE.MeshBasicMaterial({
-      //color: "rgb(100,0,100)",
-      opacity: 0.4,
+      color: "rgb(50,70,50)",
+      opacity: .2,
       transparent: true,
-      blending: THREE.AdditiveBlending
+      blending: THREE.SubtractiveBlending,
     });
 
-    this.pointMaterial = new THREE.MeshBasicMaterial({
-      color: "rgb(255,255,255)",
-      opacity: 0.3,
+    this.pointMaterial2 = new THREE.MeshPhongMaterial({
+      color: "rgb(255,100,255)",
+      opacity: .5,
       transparent: true,
-      blending: THREE.AdditiveBlending
+      blending: THREE.NormalBlending,
+      shininess: 0
     });
 
 
     this.up = new THREE.Vector3(0,1,0);
-    this.sphere = new THREE.SphereGeometry(.5);
-    this.sphere2 = new THREE.SphereGeometry(.4);
-    this.bigSphere = new THREE.SphereGeometry(1.5);
+    this.sphere2 = new THREE.SphereGeometry(.8);
+    this.sphere3 = new THREE.SphereGeometry(1.8);
+    this.bigSphere = new THREE.SphereGeometry(1.);
  
   }
 
@@ -350,7 +352,7 @@ class GPU {
 
     let zoomMult = 1;
     if (handleZoom) {
-      zoomMult = (this.zoom === 0 ) ? 1 : 5;
+      zoomMult = (this.zoom === 0 ) ? 1 : 6;
     }
 
     if (handleZoom) {
@@ -392,26 +394,8 @@ class GPU {
     light.shadow.camera.top = 20;
   }
 
-  setText(textElem, object, text) {
-    //we can make text follow ojbects by reversing some matrix transformations
-    const tempV = new THREE.Vector3();
-    object.updateWorldMatrix(true, false);
-    object.getWorldPosition(tempV); //get the World Position Vector
-
-    tempV.project(this.camera); //gets us to the NDC coords for the center of this object
-
-    const textX = (tempV.x * 0.5 + 0.5) * this.width; // NDC to pixel coords in div
-    const textY = (tempV.y * -0.5 + 0.5) * this.height; //CSS coords are opposite in Y direction
-
-    textElem.style.position = "absolute";
-    textElem.textContent = text;
-    textElem.style.color = "black";
-
-    textElem.style.transform = `translate(-50%, -50%) translate(${textX}px,${textY}px)`;
-  }
-
   setTextOrtho(textElem, vec3, text) {
-    //we can make text follow ojbects by reversing some matrix transformations
+   //we can make text follow objects by applying projection to center of object
     const tempV = new THREE.Vector3();
     tempV.copy(vec3);
 
@@ -459,8 +443,9 @@ class GPU {
 
       //console.log(mousePicker.length)
 
-      this.currentMouseSphere.visible = false;
       this.currentBigMouseSphere.visible = false;  
+      this.currentBiggerMouseSphere.visible = false;  
+
       this.currentMousePoint = null;
 
       if (mousePicker.length > 0 ) {
@@ -481,10 +466,12 @@ class GPU {
 
             this.mouseObjectElem.innerHTML = "";
             pointToUse = point;
-            this.currentMouseSphere.visible = true;
-            this.currentMouseSphere.position.copy(point.point);
+
             this.currentBigMouseSphere.visible = true;
             this.currentBigMouseSphere.position.copy(point.point);
+
+            this.currentBiggerMouseSphere.visible = true;
+            this.currentBiggerMouseSphere.position.copy(point.point);
 
             const cc = pointToUse.object.material.color;
             let colorToUse = cc;
@@ -497,14 +484,14 @@ class GPU {
 
               //if something is already highlighted we need to know it's index
               if ( this.currentHighLighted ) {
-                //console.log("xxx");
                 this.previousHighLighedIndex = this.currentHighLighted.index;
                 this.currentHighLighted.material.color.copy(this.previousColor);
                 this.currentHighLighted.material.color.highlighted = false;
               }
 
               this.previousColor = new THREE.Color().copy(cc);
-              const highlightColor = new THREE.Color(ET(cc.r/4+.9),ET(cc.g/4+.3),ET(cc.b/4.+.9));
+              //const highlightColor = new THREE.Color(ET(cc.r/4+.9),ET(cc.g/4+.3),ET(cc.b/4.+.9));
+              const highlightColor = new THREE.Color(1,1,.2);
               cc.set(highlightColor);
               cc.highlighted = true;
               this.currentHighLighted = pointToUse.object;
@@ -512,10 +499,13 @@ class GPU {
             }
 
             //const newColor = new THREE.Color(1-cc.r,1-cc.g,1-cc.b);
-            const newColor = new THREE.Color(1-colorToUse.r,1-colorToUse.g,1-colorToUse.b);
+            //const newColor = new THREE.Color(1-colorToUse.r,1-colorToUse.g,1-colorToUse.b);
        
-            this.currentBigMouseSphere.material.color.set(newColor);
+            //this.currentBigMouseSphere.material.color.set(newColor);
 
+            function rr(cc) {
+              return Math.trunc(cc*1000)/1000;
+            }
             this.mouseObjectElem.innerHTML +=
             "<p>" +
             pointToUse.object.name +
@@ -524,9 +514,9 @@ class GPU {
             "<br><br>Face<br>" +
             JSON.stringify(pointToUse.face) +
             "<br><br>Color<br>" +
-            " red: " + pointToUse.object.material.color.r +
-            " green: " + pointToUse.object.material.color.g +
-            " blue: "  + pointToUse.object.material.color.b
+            " red: "   + rr(this.previousColor.r) +
+            " green: " + rr(this.previousColor.g) +
+            " blue: "  + rr(this.previousColor.b)
             "</p>";
             break;
           }
