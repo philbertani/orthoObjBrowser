@@ -31,10 +31,15 @@ class GPU {
   frustumFudge = 1.2;
   previousHighLighedIndex = -1;
 
+  light2Pos = new THREE.Vector3();
+  camX = new THREE.Vector3();
+  camY = new THREE.Vector3();
+  camZ = new THREE.Vector3();
+  tempV = new THREE.Vector3();
+
   constructor(canvas) {
     this.canvas = canvas;
     window.addEventListener("resize", this.handleResize.bind(this), false);
-
     window.addEventListener("keypress", this.handleKeyPress.bind(this), false);
 
     //THREE.Cache.enabled = false;
@@ -52,8 +57,7 @@ class GPU {
 
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(width, height, true);
-    renderer.setClearColor("rgb(70,70,150)", 1);
-
+    renderer.setClearColor("rgb(150,150,250)", 1);
 
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.needsUpdate = true;
@@ -65,9 +69,7 @@ class GPU {
 
     const aspect = width / height;
     const frustumSize = 150 / this.frustumFudge;
-
     this.frustumSize = frustumSize;
-    //this.camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 3000);
 
     this.camera = new THREE.OrthographicCamera(
       (-frustumSize * aspect) / 2 ,
@@ -85,15 +87,13 @@ class GPU {
     this.controls.maxDistance = 1000;
     this.controls.zoomSpeed = 1;
 
-    this.mainLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    this.mainLight.position.set(0, 1000, 0);
-    this.setShadow(this.mainLight);
+    //mainLight will look down z axis of camera
+    this.mainLight = new THREE.PointLight(0xffffff, .9);
+    //this.setShadow(this.mainLight);
     this.scene.add(this.mainLight);
 
-    this.cameraLight = new THREE.PointLight(0xffffff, .7);
-    this.setShadow(this.cameraLight);
-    this.camera.add(this.cameraLight);
-    this.scene.add(this.camera);
+    this.light2 = new THREE.PointLight(0xffffff,.6);
+    this.scene.add(this.light2);
 
     const onProgress = function (xhr) {
       if (xhr.lengthComputable) {
@@ -192,30 +192,29 @@ class GPU {
     this.mtlL.setPath("./").load("obj.mtl", loadMaterials.bind(this));
 
     this.lineMaterial = new THREE.MeshPhongMaterial({
-      color: "rgb(25,220,25)",
+      color: "rgb(25,200,25)",
+      shininess: 0
     });
 
-    //NormalBlending gives more contrast when there are a lot of colors
-    //but since we are highlighting the object the same color AdditiveBlending works nicer
-    this.selectPointMaterial = new THREE.MeshBasicMaterial({
-      color: "rgb(50,70,50)",
-      opacity: .2,
+    this.selectPointMaterial = new THREE.MeshPhongMaterial({
+      color: "rgb(100,100,100)",
+      opacity: 1,
       transparent: true,
       blending: THREE.SubtractiveBlending,
+      shininess: 0
     });
 
     this.pointMaterial2 = new THREE.MeshPhongMaterial({
-      color: "rgb(255,100,255)",
       opacity: .5,
       transparent: true,
       blending: THREE.NormalBlending,
-      shininess: 0
+      shininess: 20
     });
 
 
     this.up = new THREE.Vector3(0,1,0);
     this.sphere2 = new THREE.SphereGeometry(.8);
-    this.sphere3 = new THREE.SphereGeometry(1.8);
+    this.sphere3 = new THREE.SphereGeometry(2.);
     this.bigSphere = new THREE.SphereGeometry(1.);
  
   }
@@ -271,8 +270,8 @@ class GPU {
     // cylinder: radiusAtTop, radiusAtBottom,
     //     height, radiusSegments, heightSegments
     const edgeGeometry = new THREE.CylinderGeometry(
-      .3,
-      .3,
+      .5,
+      .5,
       edge.length(),
       4,
       1
@@ -394,9 +393,12 @@ class GPU {
     light.shadow.camera.top = 20;
   }
 
+
+
   setTextOrtho(textElem, vec3, text) {
    //we can make text follow objects by applying projection to center of object
-    const tempV = new THREE.Vector3();
+  
+    const tempV = this.tempV; //new THREE.Vector3();
     tempV.copy(vec3);
 
     tempV.project(this.camera); //gets us to the NDC coords/Clip Space for the center of this object
@@ -433,6 +435,13 @@ class GPU {
       time *= 0.001; //convert from milliseconds to seconds
       frameCount++;
 
+      //set lights based on x,y,z axes of camera
+      this.camera.matrixWorld.extractBasis(this.camX,this.camY,this.camZ);
+      this.mainLight.position.copy(this.camZ.multiplyScalar(100));
+
+      this.light2Pos.copy(this.camY);
+      this.light2.position.copy(this.camY.multiplyScalar(1000));
+
       this.raycaster.setFromCamera(this.pointer, this.camera);
       if (frameCount % 40 === 0) {
         //console.log("origin:",this.raycaster.ray.origin)
@@ -440,8 +449,6 @@ class GPU {
       }
 
       const mousePicker = this.raycaster.intersectObjects(this.scene.children);
-
-      //console.log(mousePicker.length)
 
       this.currentBigMouseSphere.visible = false;  
       this.currentBiggerMouseSphere.visible = false;  
@@ -462,6 +469,8 @@ class GPU {
               + "/p>"
           }
 
+          //only pick the coordinates of actual points in the original objects or else
+          //we wind up making new vertices on the line segments
           if ( String(point.object.name).includes("Object")) {
 
             this.mouseObjectElem.innerHTML = "";
@@ -476,9 +485,10 @@ class GPU {
             const cc = pointToUse.object.material.color;
             let colorToUse = cc;
 
-            function ET(cc) {  //(E)xponential (T)one
+            function ET(cc) {  //(E)xponential (T)one map
               return 1 - Math.exp(-cc);
             }
+
             if ( !cc.hasOwnProperty("highlighted") ||
                 (cc.hasOwnProperty("highlighted") && !cc.highlighted )) {
 
@@ -489,9 +499,9 @@ class GPU {
                 this.currentHighLighted.material.color.highlighted = false;
               }
 
+              const sc = 4;
               this.previousColor = new THREE.Color().copy(cc);
-              //const highlightColor = new THREE.Color(ET(cc.r/4+.9),ET(cc.g/4+.3),ET(cc.b/4.+.9));
-              const highlightColor = new THREE.Color(1,1,.2);
+              const highlightColor = new THREE.Color(ET(cc.r*sc),ET(cc.g*sc),ET(cc.b*sc));
               cc.set(highlightColor);
               cc.highlighted = true;
               this.currentHighLighted = pointToUse.object;
@@ -499,9 +509,8 @@ class GPU {
             }
 
             //const newColor = new THREE.Color(1-cc.r,1-cc.g,1-cc.b);
-            //const newColor = new THREE.Color(1-colorToUse.r,1-colorToUse.g,1-colorToUse.b);
-       
-            //this.currentBigMouseSphere.material.color.set(newColor);
+            const newColor = new THREE.Color(1-colorToUse.r,1-colorToUse.g,1-colorToUse.b);
+            this.currentBiggerMouseSphere.material.color.set(newColor);
 
             function rr(cc) {
               return Math.trunc(cc*1000)/1000;
