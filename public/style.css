@@ -32,6 +32,8 @@ video {
     border: 2px solid black;
     display: flex;
     flex-direction: column;
+    overflow: auto;
+    max-height: 90vh;
 }
 
 .objLabel {
@@ -44,3 +46,21 @@ video {
 }
 
 p { margin: 5px; word-break: break-all}
+
+#infoDiv{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    overflow:auto;
+    height: 100%;
+    max-height: 90vh;
+}
+
+.objDiv {
+    text-align: center;
+    width: 100%;
+}
+
+.objDiv:hover {
+    background-Color: yellow;
+}

@@ -27,9 +27,10 @@ class GPU {
   numLines = 0;
   showText = false;
   zoom = 1;
-  lookAt = null;
   frustumFudge = 1.2;
   previousHighLighedIndex = -1;
+  infoDiv;
+  lineSegments=[];
 
   light2Pos = new THREE.Vector3();
   camX = new THREE.Vector3();
@@ -41,6 +42,7 @@ class GPU {
     this.canvas = canvas;
     window.addEventListener("resize", this.handleResize.bind(this), false);
     window.addEventListener("keypress", this.handleKeyPress.bind(this), false);
+    this.infoDiv = document.getElementById("infoDiv");
 
     //THREE.Cache.enabled = false;
     THREE.Cache.clear();
@@ -131,6 +133,11 @@ class GPU {
         object.name = "Object #" + this.objNum;
         this.objects.push(object);
 
+        const objDiv = document.createElement("div");
+        objDiv.innerHTML = object.name;
+        objDiv.className = "objDiv";
+        this.infoDiv.appendChild(objDiv);
+
         this.objNum++;
       }
     }
@@ -197,8 +204,8 @@ class GPU {
     });
 
     this.selectPointMaterial = new THREE.MeshPhongMaterial({
-      color: "rgb(100,100,100)",
-      opacity: 1,
+      color: "rgb(50,100,50)",
+      opacity: 1,  //opacity does nothing with Subtractive
       transparent: true,
       blending: THREE.SubtractiveBlending,
       shininess: 0
@@ -295,8 +302,13 @@ class GPU {
   }
 
   handleKeyPress(ev) {
-    //console.log(ev)
-    if (ev.keyCode === 109) {
+
+    function rr(cc) {
+      return Math.trunc(cc*10000)/10000;
+    }
+
+    //keys m and z are for add measuring points and for zooming in and out
+    if (ev.keyCode === 109) {  //key m
       //console.log("measuring");
       if (this.currentMousePoint) {
         this.measurePoints.push(this.currentMousePoint);
@@ -312,15 +324,21 @@ class GPU {
           newEdge.name = "line " + this.numLines;
           newEdge.index = this.numLines;
 
+          this.lineSegments.push(newEdge);
           this.numLines ++;
 
           //console.log(newEdge)
           this.scene.add(newEdge);
+
+          const lineDiv = document.createElement("div");
+          lineDiv.innerHTML = newEdge.name + ", " + rr(newEdge.edgeLength);
+          lineDiv.className = "objDiv";
+          this.infoDiv.appendChild(lineDiv);
+
         }
       }
     }
-    else if (ev.keyCode === 122) {
-
+    else if (ev.keyCode === 122) {  //key z
       this.handleResizeOrtho("handleZoom")
       this.zoom ^= 1;
     }
