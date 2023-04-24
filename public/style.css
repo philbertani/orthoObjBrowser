@@ -1,16 +1,3 @@
-.vidDiv {
-    position:relative; 
-    width: max(20vw, 400px);
-}
-
-video {
-    /* object-fit: cover; */
-
-    margin-top: 1vh;
-    width: 100%;
-
-}
-
 #canvas {
     position:relative;
     /* margin-left: 1vw; */
