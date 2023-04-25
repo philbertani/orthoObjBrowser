@@ -31,6 +31,9 @@ class GPU {
   previousHighLighedIndex = -1;
   infoDiv;
   lineSegments=[];
+  highlightLine=null;
+  lineLabels = [];
+  highlightObject=null;
 
   light2Pos = new THREE.Vector3();
   camX = new THREE.Vector3();
@@ -43,6 +46,7 @@ class GPU {
     window.addEventListener("resize", this.handleResize.bind(this), false);
     window.addEventListener("keypress", this.handleKeyPress.bind(this), false);
     this.infoDiv = document.getElementById("infoDiv");
+
 
     //THREE.Cache.enabled = false;
     THREE.Cache.clear();
@@ -128,6 +132,7 @@ class GPU {
         label.className = "objLabel";
 
         this.canvas.appendChild(label);
+        label.style.display = "none";
         this.labels.push(label);
 
         object.name = "Object #" + this.objNum;
@@ -136,6 +141,8 @@ class GPU {
         const objDiv = document.createElement("div");
         objDiv.innerHTML = object.name;
         objDiv.className = "objDiv";
+        objDiv.id = "object"+this.objNum;
+     
         this.infoDiv.appendChild(objDiv);
 
         this.objNum++;
@@ -158,6 +165,7 @@ class GPU {
       console.log(this.groupBaryCenter);
 
       this.scene.traverse(centerGroup.bind(this));
+      this.infoDiv.innerHTML += "<hr>";
 
       this.baryCenters.forEach((bary) => {
         bary.add(this.groupBaryCenter);
@@ -170,6 +178,42 @@ class GPU {
 
       this.scene.add(this.currentBigMouseSphere);
       this.scene.add(this.currentBiggerMouseSphere);
+
+
+      function checkObjId(str) {
+        if (str[0]==="o") {  //id starts with (o)bject
+          return str.slice(6); //return 6 through end which will be the object #
+        }
+        else {
+          return null;
+        }
+      }
+      function highlightObject(ev) {
+        const objId = checkObjId(ev.target.id);
+        if (objId) {
+
+          if (this.highlightObject) {
+            this.labels[this.highlightObject].style.display="none"; 
+          }
+
+          this.highlightObject = objId;
+          this.labels[objId].style.display="block"
+        }
+        else if ( this.highlightObject) {
+          this.labels[this.highlightObject].style.display="none";
+        }
+      }
+      function unhighlightObject(ev) {
+        const objId = checkObjId(ev.target.id);
+        if (this.highlightObject) {
+          this.labels[this.highlightObject].style.display="none";
+          this.highlightObject = null;
+        }
+      }
+
+      this.infoDiv.addEventListener("mouseover",highlightObject.bind(this));
+      this.infoDiv.addEventListener("mouseleave",unhighlightObject.bind(this));
+  
 
       this.renderer.render(this.scene, this.camera);
       this.render();
@@ -217,7 +261,6 @@ class GPU {
       blending: THREE.NormalBlending,
       shininess: 20
     });
-
 
     this.up = new THREE.Vector3(0,1,0);
     this.sphere2 = new THREE.SphereGeometry(.8);
@@ -330,9 +373,32 @@ class GPU {
           //console.log(newEdge)
           this.scene.add(newEdge);
 
+          const label = document.createElement("div");
+          label.id = "line" + newEdge.index;
+          label.className = "objLabel";  
+          this.canvas.appendChild(label);
+          label.style.display = "none";
+
+          this.lineLabels.push(label);
+
           const lineDiv = document.createElement("div");
           lineDiv.innerHTML = newEdge.name + ", " + rr(newEdge.edgeLength);
           lineDiv.className = "objDiv";
+          lineDiv.id = newEdge.index;
+
+          function highlightLine(ev) {
+            this.highlightLine = ev.target.id;
+            this.lineLabels[ev.target.id].style.display="block";
+  
+          }
+          function unhighlightLine(ev) {
+            this.lineLabels[ev.target.id].style.display="none";
+            this.highlightLine = null;
+          }
+
+          lineDiv.addEventListener("mouseover",highlightLine.bind(this));
+          lineDiv.addEventListener("mouseleave",unhighlightLine.bind(this));
+
           this.infoDiv.appendChild(lineDiv);
 
         }
@@ -373,7 +439,6 @@ class GPU {
     }
 
     if (handleZoom) {
-      //console.log('xxx')
       if ( zoomMult > 1 && this.currentMousePoint) {
         this.controls.target.copy(this.currentMousePoint);
       }
@@ -392,7 +457,6 @@ class GPU {
 
     this.controls.update();
 
-
   }
 
   setShadow(light) {
@@ -410,8 +474,6 @@ class GPU {
     light.shadow.camera.right = 20;
     light.shadow.camera.top = 20;
   }
-
-
 
   setTextOrtho(textElem, vec3, text) {
    //we can make text follow objects by applying projection to center of object
@@ -551,7 +613,6 @@ class GPU {
 
         //check if new point is very close to one that exists
         //if it is use the exact position for that point
-
         this.currentMousePoint = pointToUse.point;
  
       }
@@ -567,14 +628,19 @@ class GPU {
         }
       }
 
-      if (this.showText) {
-        for (let i = 0; i < this.objects.length; i++) {
-          const obj = this.objects[i];
-          const textElem = this.labels[i];
-          const text = "obj#" + i;
+      if (this.highlightObject) {
+        const i = this.highlightObject;
+        //const obj = this.objects[i];
+        const textElem = this.labels[i];
+        const text = "obj#" + i;
+        this.setTextOrtho(textElem, this.baryCenters[i], text);
+      }
 
-          this.setTextOrtho(textElem, this.baryCenters[i], text);
-        }
+      if (this.highlightLine) {
+        const textElem = this.lineLabels[this.highlightLine];
+        const obj = this.lineSegments[this.highlightLine];
+        const text = "line#" + this.highlightLine;
+        this.setTextOrtho(textElem, obj.position, text);
       }
 
       this.renderer.render(this.scene, this.camera);
